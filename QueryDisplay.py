@@ -49,7 +49,15 @@ class QueryDisplay:
             if found:
                 time = pred[1]
                 pred = pred[0]
-                conf = pred[0, 4]
+                conf = 0
+                try:
+                    conf = pred[0, 4]
+                except:
+                    print(pred)
+                    try:
+                        conf = pred[4]
+                    except:
+                        conf = pred[3]
                 coords = pred[0, :4]
                 results.append({"frame": frame, "coords": coords, "conf": conf, "time": time, "cam_n": i, "cam": self.finders[i].get_name(), "room": self.finders[i].get_room()})
         if len(results):
@@ -104,6 +112,6 @@ class QueryDisplay:
                         inp = input("Has the item been found?\n\t")
                         found = "y" in inp.lower()
                         if not found:
-                            self.finders[result["cam_n"]].clear_record(cls)
+                            self.finders[result["cam_n"]].clear_record(i)
                             
                     cv2.destroyAllWindows()

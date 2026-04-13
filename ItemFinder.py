@@ -38,7 +38,7 @@ class ItemFinder:
         self.ave_speed = 0 # for evaluation
         self.n_preds = 0
         self.max_mem = 0
-        self.max_cpu = process.cpu_percent()
+        self.max_cpu = 0
 
     '''def _make_new_record(self, frame, prediction):
         recs = os.listdir(self.record_path)[prediction.cls]
@@ -74,7 +74,8 @@ class ItemFinder:
         return self.room
         
     def _monitor(self):
-        process = psutil.Process(os.getpid())
+        proc = psutil.Process(os.getpid())
+        
         while self.monitoring:
             rval, frame = self.vc.read()
             
@@ -83,14 +84,12 @@ class ItemFinder:
             t2 = datetime.datetime.now()
             
             # to evaluate memory and cpu
-            self.max_mem = max(self.max_mem, process.memory_info().rss)
-            self.max_cpu = max(self.max_mem, process.cpu_percent())
+            self.max_mem = max(self.max_mem, proc.memory_info().rss)
+            self.max_cpu = max(self.max_mem, proc.cpu_percent())
             
             # to evaluate speed
             self.n_preds += 1
-            self.ave_speed += (t2 - t1)/self.n_preds
-            
-            
+            self.ave_speed += (t2 - t1).total_seconds()/self.n_preds
             
             for result in results:
                     
@@ -105,10 +104,13 @@ class ItemFinder:
                     cls = int(boxes[i].cls)
                     conf = float(boxes[i].conf)
                     
-                    self.bboxes[cls] = [self.trackers[cls].update(np.array([x1, y1, x2, y2, conf], ndmin=2)), datetime.datetime.now()]
-                    save_frame = cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), self.colors[cls], 5)
-                    save_frame = cv2.putText(save_frame, f'{self.labels[cls]} conf: {str(round(conf * 100, 2))}%', (int(x1), int(y1)-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, self.colors[cls], 2)
-                    self.frames[cls] = save_frame
+                    r = self.trackers[cls].update(np.array([x1, y1, x2, y2, conf], ndmin=2))
+                    if len(r): # if found results
+                    
+                        self.bboxes[cls] = [r, datetime.datetime.now()]
+                        save_frame = cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), self.colors[cls], 5)
+                        save_frame = cv2.putText(save_frame, f'{self.labels[cls]} conf: {str(round(conf * 100, 2))}%', (int(x1), int(y1)-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, self.colors[cls], 2)
+                        self.frames[cls] = save_frame
 
     def find(self, cls):
         '''rval, frame = self.vc.read()
@@ -155,7 +157,7 @@ class ItemFinder:
         self.thread.join()
         ret = self.bboxes[cls]
         frames = self.frames[cls]
-        found = len(ret) >= 1
+        found = len(ret) >= 1 and len(ret[0]) >= 1
         
         '''if(not len(ret)):
             #ret = _lookup(cls)

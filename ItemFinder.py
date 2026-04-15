@@ -62,7 +62,7 @@ class ItemFinder:
         self.thread.join()
         
         self.vc.release()
-        return self.ave_speed, self.n_preds, self.max_mem, self.max_cpu
+        return [self.ave_speed, self.n_preds, self.max_mem, self.max_cpu], [(name, len(self.bboxes[i])) for i, name in self.labels.items()]
         
     def get_labels(self):
         return self.model.names
@@ -75,10 +75,9 @@ class ItemFinder:
         
     def _monitor(self):
         proc = psutil.Process(os.getpid())
+        rval, frame = self.vc.read()
         
-        while self.monitoring:
-            rval, frame = self.vc.read()
-            
+        while self.monitoring and rval:
             t1 = datetime.datetime.now()
             results = self.model.predict(frame, conf = self.conf, verbose = False)
             t2 = datetime.datetime.now()
@@ -111,6 +110,8 @@ class ItemFinder:
                         save_frame = cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), self.colors[cls], 5)
                         save_frame = cv2.putText(save_frame, f'{self.labels[cls]} conf: {str(round(conf * 100, 2))}%', (int(x1), int(y1)-10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, self.colors[cls], 2)
                         self.frames[cls] = save_frame
+                        
+            rval, frame = self.vc.read()
 
     def find(self, cls):
         '''rval, frame = self.vc.read()
